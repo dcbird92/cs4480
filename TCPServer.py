@@ -14,8 +14,6 @@ myAPIKey = "7df792b5fbc76612624c86b8ca4feb70d63a188ae2740bbdfd044f4e071b865a"
 def start_thread(connectedSocket):
     decoded = ""
     print("Receiving from:", connectedSocket.getpeername())
-    sentence = connectedSocket.recv(2048).decode('unicode_escape')
-    decoded = decoded + sentence
     getMSG = True
     while getMSG:
         sentence = connectedSocket.recv(2048).decode()
