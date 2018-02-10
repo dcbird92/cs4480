@@ -16,58 +16,86 @@ def start_thread(connectedSocket):
     print("Receiving from:", connectedSocket.getpeername())
     getMSG = True
     while getMSG:
-        sentence = connectedSocket.recv(2048).decode()
+        sentence = connectedSocket.recv(2048).decode('unicode_escape')
         decoded = decoded + sentence
         if decoded.endswith('\r\n\r\n') or sentence == '\r\n':
             getMSG = False
     print("Received the message from:",connectedSocket.getpeername())
+
+    if "Connection: keep-alive" in decoded:
+        decoded = decoded.replace("Connection: keep-alive", "Connection: close")
+
     parsed = decoded.strip().split(" ")  # Splitting request into three parts with white space as divider
     requestPort = 80  # Default Port
 
     URL = parsed[1]
     parsedURL = urlparse(URL)
+    userAgent = ""
+
+    if parsedURL.port is not None:
+        requestPort = parsedURL.port
+
     if "User-Agent: Mozilla/5.0" in decoded:
-        if parsedURL.port is not None:
-            requestPort = parsedURL.port
 
         requestSocket = socket(AF_INET, SOCK_STREAM)
         requestURL = parsedURL.netloc.replace("www.", "")
-        print("URL", URL)
-        print("requestURL", requestURL)
+        print("mozilla URL", URL)
+        print("mozilla requestURL", requestURL)
         requestSocket.connect((requestURL, requestPort))
         requestSocket.send(decoded.encode())
-        print("Sent to requestSocket")
+        print("mozilla Sent to requestSocket")
         sentence = requestSocket.recv(2048)
         connectedSocket.send(sentence)
-        print("Receiving from request")
         while len(sentence) != 0:
+            print("Receiving Mozilla")
             sentence = requestSocket.recv(2048)
             connectedSocket.send(sentence)
+            print("Sending Mozilla")
+
+        requestSocket.close()
+        connectedSocket.close()
 
     elif "User-Agent: curl" in decoded:
-        print("curl")
-        print(decoded)
-
-    elif "User-Agent: Wget" in decoded:
-        if parsedURL.port is not None:
-            requestPort = parsedURL.port
-
+        userAgent = "curl"
         requestSocket = socket(AF_INET, SOCK_STREAM)
         requestURL = parsedURL.netloc.replace("www.", "")
-        print("URL", URL)
-        print("requestURL", requestURL)
+        print("curl URL", URL)
+        print("curl requestURL", requestURL)
         requestSocket.connect((requestURL, requestPort))
         requestSocket.send(decoded.encode())
-        print("Sent to requestSocket")
+        print("curl Sent to requestSocket")
         sentence = requestSocket.recv(2048)
         virusMessage = sentence
-        print("Receiving from request")
+        print("curl Receiving from request")
         while len(sentence) != 0:
+            print("Receiving Curl")
+            sentence = requestSocket.recv(2048)
+            virusMessage = virusMessage + sentence
+        checkSum(virusMessage)
+        connectedSocket.send(virusMessage)
+        requestSocket.close()
+        connectedSocket.close()
+
+    elif "User-Agent: Wget" in decoded:
+        userAgent = "Wget"
+        requestSocket = socket(AF_INET, SOCK_STREAM)
+        requestURL = parsedURL.netloc.replace("www.", "")
+        print("wget URL", URL)
+        print("wget requestURL", requestURL)
+        requestSocket.connect((requestURL, requestPort))
+        requestSocket.send(decoded.encode())
+        print("wget Sent to requestSocket")
+        sentence = requestSocket.recv(2048)
+        virusMessage = sentence
+        print("wget Receiving from request")
+        while len(sentence) != 0:
+            print("Receiving Wget")
             sentence = requestSocket.recv(2048)
             virusMessage = virusMessage + sentence
 
         connectedSocket.send(virusMessage)
-
+        requestSocket.close()
+        connectedSocket.close()
     else:
         method = parsed[0]
         version = parsed[2]
@@ -110,7 +138,8 @@ def start_thread(connectedSocket):
             sentence = requestSocket.recv(2048)
 
         connectedSocket.send(sentence)
-
+        requestSocket.close()
+        connectedSocket.close()
     #connectedSocket.close()
 
     '''
@@ -129,10 +158,15 @@ def start_thread(connectedSocket):
 def checkSum(message):
 
     hash_md5 = hashlib.md5(message)
-    params = {'apikey': '-YOUR API KEY HERE-'}
-    files = {'file': ('myfile.exe', open('myfile.exe', 'rb'))}
-    response = requests.post('https://www.virustotal.com/vtapi/v2/file/scan', files=files, params=params)
+    params = {'apikey': myAPIKey, 'resource': '7657fcb7d772448a6d8504e4b20168b8'}
+    headers = {
+        "Accept-Encoding": "gzip, deflate",
+        "User-Agent": userAgent
+    }
+    response = requests.get('https://www.virustotal.com/vtapi/v2/file/report',
+                            params=params, headers=headers)
     json_response = response.json()
+    print(json_response)
 
 def main():
     if len(sys.argv) < 2:
