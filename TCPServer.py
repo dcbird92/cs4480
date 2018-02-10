@@ -96,8 +96,8 @@ def start_thread(connectedSocket):
         splitMessage = virusMessage.decode('unicode_escape').split('\r\n')
         headers = splitMessage[:15]
         vMessage = ''.join(splitMessage[15:])
-        print("HEADERS:", headers)
-        print("VIRUS CHECK:", vMessage)
+        #print("HEADERS:", headers)
+        #print("VIRUS CHECK:", vMessage)
         #print("HERE1:", splitMessage)
         #print("HERE2:", splitMessage[0])
 
@@ -168,7 +168,7 @@ def start_thread(connectedSocket):
 def checkSum(message, agent):
 
     hash_md5 = hashlib.md5(message.encode())
-    params = {'apikey': myAPIKey, 'resource': hash_md5}
+    #params = {'apikey': myAPIKey, 'resource': hash_md5}
     params = {'apikey': myAPIKey, 'resource': '7657fcb7d772448a6d8504e4b20168b8'}
     headers = {
         "Accept-Encoding": "gzip, deflate",
@@ -177,8 +177,16 @@ def checkSum(message, agent):
     response = requests.get('https://www.virustotal.com/vtapi/v2/file/report',
                             params=params, headers=headers)
     json_response = response.json()
-    print(json_response)
-
+    print("JSON RESPONSE:")
+    print(json_response.items()[0])
+    '''
+    for key, value in json_response.items():
+        if key is 'scans':
+            for key2, value2 in key.items():
+                print(key2,values2)
+        else:
+            print(key, value)
+    '''
 def main():
     if len(sys.argv) < 2:
         print("Did not give enough parameters")
