@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 import _thread
 import hashlib
 import sys
-#import requests
+import requests
 
 serverAddress = 'localhost'
 apiNumber = 0
