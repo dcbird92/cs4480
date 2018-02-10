@@ -178,15 +178,18 @@ def checkSum(message, agent):
                             params=params, headers=headers)
     json_response = response.json()
     print("JSON RESPONSE:")
-    print(json_response.items()[0])
-    '''
-    for key, value in json_response.items():
-        if key is 'scans':
-            for key2, value2 in key.items():
-                print(key2,values2)
-        else:
-            print(key, value)
-    '''
+    #print(list(json_response))
+    scanner = list(json_response.items())
+    scans = list(scanner)[0]
+    scanReports = scans[1].items()
+    print(list(scanReports)[0])
+    #for key,value in scanReports:
+     #   print(key,value)
+    #print(scans[1])
+    #scanned = scanner.get('scans')
+    #print(scanned)
+
+
 def main():
     if len(sys.argv) < 2:
         print("Did not give enough parameters")
