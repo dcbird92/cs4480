@@ -9,6 +9,7 @@ serverAddress = 'localhost'
 apiNumber = 0
 virusUrl = "https://www.virustotal.com/vtapi/v2/file/scan"
 myAPIKey = "7df792b5fbc76612624c86b8ca4feb70d63a188ae2740bbdfd044f4e071b865a"
+userAgent = ""
 
 
 def start_thread(connectedSocket):
@@ -30,13 +31,11 @@ def start_thread(connectedSocket):
 
     URL = parsed[1]
     parsedURL = urlparse(URL)
-    userAgent = ""
 
     if parsedURL.port is not None:
         requestPort = parsedURL.port
 
     if "User-Agent: Mozilla/5.0" in decoded:
-
         requestSocket = socket(AF_INET, SOCK_STREAM)
         requestURL = parsedURL.netloc.replace("www.", "")
         print("mozilla URL", URL)
@@ -71,7 +70,7 @@ def start_thread(connectedSocket):
             print("Receiving Curl")
             sentence = requestSocket.recv(2048)
             virusMessage = virusMessage + sentence
-        checkSum(virusMessage)
+        checkSum(virusMessage, userAgent)
         connectedSocket.send(virusMessage)
         requestSocket.close()
         connectedSocket.close()
@@ -93,7 +92,7 @@ def start_thread(connectedSocket):
             sentence = requestSocket.recv(2048)
             virusMessage = virusMessage + sentence
 
-        checkSum(virusMessage)
+        checkSum(virusMessage, userAgent)
 
         connectedSocket.send(virusMessage)
         requestSocket.close()
@@ -157,13 +156,13 @@ def start_thread(connectedSocket):
     Connection: keep-alive
 
     '''
-def checkSum(message):
+def checkSum(message, agent):
 
     hash_md5 = hashlib.md5(message)
     params = {'apikey': myAPIKey, 'resource': '7657fcb7d772448a6d8504e4b20168b8'}
     headers = {
         "Accept-Encoding": "gzip, deflate",
-        "User-Agent": userAgent
+        "User-Agent": agent
     }
     response = requests.get('https://www.virustotal.com/vtapi/v2/file/report',
                             params=params, headers=headers)
