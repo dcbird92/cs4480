@@ -24,13 +24,11 @@ def start_thread(connectedSocket):
             getMSG = False
     print("Received the message from:",connectedSocket.getpeername())
     parsed = decoded.strip().split(" ")  # Splitting request into three parts with white space as divider
+    requestPort = 80  # Default Port
+
+    URL = parsed[1]
+    parsedURL = urlparse(URL)
     if "User-Agent: Mozilla/5.0" in decoded:
-
-        requestPort = 80  # Default Port
-
-        URL = parsed[1]
-        parsedURL = urlparse(URL)
-
         if parsedURL.port is not None:
             requestPort = parsedURL.port
 
@@ -53,8 +51,24 @@ def start_thread(connectedSocket):
         print(decoded)
 
     elif "User-Agent: Wget" in decoded:
-        print("wget")
-        print(decoded)
+        if parsedURL.port is not None:
+            requestPort = parsedURL.port
+
+        requestSocket = socket(AF_INET, SOCK_STREAM)
+        requestURL = parsedURL.netloc.replace("www.", "")
+        print("URL", URL)
+        print("requestURL", requestURL)
+        requestSocket.connect((requestURL, requestPort))
+        requestSocket.send(decoded.encode())
+        print("Sent to requestSocket")
+        sentence = requestSocket.recv(2048)
+        virusMessage = sentence
+        print("Receiving from request")
+        while len(sentence) != 0:
+            sentence = requestSocket.recv(2048)
+            virusMessage = virusMessage + sentence
+
+        connectedSocket.send(virusMessage)
 
     else:
         method = parsed[0]
@@ -78,10 +92,7 @@ def start_thread(connectedSocket):
             connectedSocket.close()
             return
 
-        requestPort = 80  # Default Port
 
-        URL = parsed[1]
-        parsedURL = urlparse(URL)
 
         if parsedURL.port is not None:
             requestPort = parsedURL.port
