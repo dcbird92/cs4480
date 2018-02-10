@@ -91,10 +91,19 @@ def start_thread(connectedSocket):
             print("Receiving Wget")
             sentence = requestSocket.recv(2048)
             virusMessage = virusMessage + sentence
+        
+        #print(virusMessage.decode('unicode_escape'))
+        splitMessage = virusMessage.decode('unicode_escape').split('\r\n')
+        headers = splitMessage[:15]
+        vMessage = ''.join(splitMessage[15:])
+        print("HEADERS:", headers)
+        print("VIRUS CHECK:", vMessage)
+        #print("HERE1:", splitMessage)
+        #print("HERE2:", splitMessage[0])
 
-        checkSum(virusMessage, userAgent)
+        checkSum(vMessage, userAgent)
 
-        connectedSocket.send(virusMessage)
+        connectedSocket.send(vMessage.encode())
         requestSocket.close()
         connectedSocket.close()
     else:
@@ -158,7 +167,8 @@ def start_thread(connectedSocket):
     '''
 def checkSum(message, agent):
 
-    hash_md5 = hashlib.md5(message)
+    hash_md5 = hashlib.md5(message.encode())
+    params = {'apikey': myAPIKey, 'resource': hash_md5}
     params = {'apikey': myAPIKey, 'resource': '7657fcb7d772448a6d8504e4b20168b8'}
     headers = {
         "Accept-Encoding": "gzip, deflate",
@@ -171,7 +181,7 @@ def checkSum(message, agent):
 
 def main():
     if len(sys.argv) < 2:
-        print("Did not give enought parameters")
+        print("Did not give enough parameters")
         return
     if sys.argv[1] is None or sys.argv[2] is None:
         print("You inputs were off, what server port did you want to use?")
