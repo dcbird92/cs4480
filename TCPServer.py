@@ -93,6 +93,8 @@ def start_thread(connectedSocket):
             sentence = requestSocket.recv(2048)
             virusMessage = virusMessage + sentence
 
+        checkSum(virusMessage)
+
         connectedSocket.send(virusMessage)
         requestSocket.close()
         connectedSocket.close()
