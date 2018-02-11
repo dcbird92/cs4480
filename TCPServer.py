@@ -54,28 +54,8 @@ def start_thread(connectedSocket):
         requestSocket.close()
         connectedSocket.close()
 
-    elif "User-Agent: curl" in decoded:
-        userAgent = "curl"
-        requestSocket = socket(AF_INET, SOCK_STREAM)
-        requestURL = parsedURL.netloc.replace("www.", "")
-        print("curl URL", URL)
-        print("curl requestURL", requestURL)
-        requestSocket.connect((requestURL, requestPort))
-        requestSocket.send(decoded.encode())
-        print("curl Sent to requestSocket")
-        sentence = requestSocket.recv(2048)
-        virusMessage = sentence
-        print("curl Receiving from request")
-        while len(sentence) != 0:
-            print("Receiving Curl")
-            sentence = requestSocket.recv(2048)
-            virusMessage = virusMessage + sentence
-        checkSum(virusMessage, userAgent)
-        connectedSocket.send(virusMessage)
-        requestSocket.close()
-        connectedSocket.close()
 
-    elif "User-Agent: Wget" in decoded:
+    elif "User-Agent: Wget" in decoded or "User-Agent: curl" in decoded:
         userAgent = "Wget"
         requestSocket = socket(AF_INET, SOCK_STREAM)
         requestURL = parsedURL.netloc.replace("www.", "")
@@ -92,18 +72,15 @@ def start_thread(connectedSocket):
             sentence = requestSocket.recv(2048)
             virusMessage = virusMessage + sentence
         
-        #print(virusMessage.decode('unicode_escape'))
-        splitMessage = virusMessage.decode('unicode_escape').split('\r\n')
+        splitMessage = virusMessage.decode().split('\r\n')
         headers = splitMessage[:15]
         vMessage = ''.join(splitMessage[15:])
-        #print("HEADERS:", headers)
-        #print("VIRUS CHECK:", vMessage)
-        #print("HERE1:", splitMessage)
-        #print("HERE2:", splitMessage[0])
 
-        checkSum(vMessage, userAgent)
+        if checkSum(vMessage, userAgent) is True:
+            connectedSocket.send(vMessage.encode())
+        else:
+            connectedSocket.send(virusMessage)
 
-        connectedSocket.send(vMessage.encode())
         requestSocket.close()
         connectedSocket.close()
     else:
@@ -151,25 +128,13 @@ def start_thread(connectedSocket):
         requestSocket.close()
         connectedSocket.close()
     #connectedSocket.close()
+    
 
-    '''
-    1
-    Received request:  GET http://detectportal.firefox.com/success.txt HTTP/1.0
-    Host: detectportal.firefox.com
-    User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:57.0) Gecko/20100101 Firefox/57.0
-    Accept: */*
-    Accept-Language: en-US,en;q=0.5
-    Accept-Encoding: gzip, deflate
-    Cache-Control: no-cache
-    Pragma: no-cache
-    Connection: keep-alive
-
-    '''
 def checkSum(message, agent):
 
     hash_md5 = hashlib.md5(message.encode())
-    #params = {'apikey': myAPIKey, 'resource': hash_md5}
-    params = {'apikey': myAPIKey, 'resource': '7657fcb7d772448a6d8504e4b20168b8'}
+    params = {'apikey': myAPIKey, 'resource': hash_md5}
+    #params = {'apikey': myAPIKey, 'resource': '7657fcb7d772448a6d8504e4b20168b8'}
     headers = {
         "Accept-Encoding": "gzip, deflate",
         "User-Agent": agent
@@ -177,18 +142,10 @@ def checkSum(message, agent):
     response = requests.get('https://www.virustotal.com/vtapi/v2/file/report',
                             params=params, headers=headers)
     json_response = response.json()
-    print("JSON RESPONSE:")
-    #print(list(json_response))
-    scanner = list(json_response.items())
-    scans = list(scanner)[0]
-    scanReports = scans[1].items()
-    print(list(scanReports)[0])
-    #for key,value in scanReports:
-     #   print(key,value)
-    #print(scans[1])
-    #scanned = scanner.get('scans')
-    #print(scanned)
-
+    if response.json().get('positives') != 0:
+        return True
+    else:
+        return False
 
 def main():
     if len(sys.argv) < 2:
