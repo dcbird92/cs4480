@@ -39,9 +39,11 @@ def start_thread(connectedSocket):
     requestSocket = socket(AF_INET, SOCK_STREAM)
     requestURL = parsedURL.netloc.replace("www.", "")
 
-    if requestPort in requestURL:
-        requestURL.replace(requestPort, '')
-
+    if str(requestPort) in requestURL:
+        requestURL = requestURL.replace(str(requestPort), '')
+        requestURL = requestURL.replace(':', '')
+    print(requestURL,requestPort)
+        
     if "User-Agent: Mozilla/5.0" in decoded:
         requestSocket.connect((requestURL, requestPort))
         requestSocket.send(decoded.encode())
@@ -68,14 +70,10 @@ def start_thread(connectedSocket):
             sentence = requestSocket.recv(2048)
             virusMessage = virusMessage + sentence
         
-        splitMessage = virusMessage.decode('unicode_escape').split('\r\n')
-        headers = splitMessage[:15]
+        headers, vMessage = virusMessage.decode('unicode_escape').split('\r\n\r\n')
         print(headers)
-        vMessage = ''.join(splitMessage[15:])
-
+        print(vMessage)
         if checkSum(vMessage, userAgent) is True:
-            print(html)
-            headers = ''.join(headers)
             connectedSocket.send(headers.encode())
             connectedSocket.send(html)
         else:
@@ -97,13 +95,9 @@ def start_thread(connectedSocket):
             #print(sentence)
             virusMessage = virusMessage + sentence
         
-        splitMessage = virusMessage.decode('unicode_escape').split('\r\n')
-        headers = splitMessage[:15]
-        print(headers)
-        vMessage = ''.join(splitMessage[15:])
+        headers, vMessage = virusMessage.decode('unicode_escape').split('\r\n\r\n')
 
         if checkSum(vMessage, userAgent) is True:
-            headers = ''.join(headers)
             connectedSocket.send(headers.encode())
             connectedSocket.send(html)
         else:
@@ -112,6 +106,7 @@ def start_thread(connectedSocket):
         requestSocket.close()
         connectedSocket.close()
     else:
+        userAgent = "gzip"
         method = parsed[0]
         version = parsed[2]
         if len(parsed) != 3:
@@ -132,23 +127,26 @@ def start_thread(connectedSocket):
             connectedSocket.close()
             return
 
-
-
-        if parsedURL.port is not None:
-            requestPort = parsedURL.port
-
         requestSocket.connect((requestURL, requestPort))
         requestMg = "GET " + parsedURL.path + " HTTP/1.0\n" + "Host: " + parsedURL.netloc + "\n" + "Connection: close\n\r\n"
         print("Sending message to: " + requestURL + " at port: " + str(requestPort))
         print(requestMg)
         requestSocket.send(requestMg.encode())
         sentence = requestSocket.recv(2048)
-
+        virusMessage = sentence
         while len(sentence) != 0:
             connectedSocket.send(sentence)
             sentence = requestSocket.recv(2048)
+            virusMessage = virusMessage + sentence
 
-        connectedSocket.send(sentence)
+        headers, vMessage = virusMessage.decode('unicode_escape').split('\r\n\r\n')
+
+        if checkSum(vMessage, userAgent) is True:
+            connectedSocket.send(headers.encode())
+            connectedSocket.send(html)
+        else:
+            connectedSocket.send(virusMessage)
+
         requestSocket.close()
         connectedSocket.close()
     
@@ -156,8 +154,8 @@ def start_thread(connectedSocket):
 def checkSum(message, agent):
 
     hash_md5 = hashlib.md5(message.encode())
-    #params = {'apikey': myAPIKey, 'resource': hash_md5}
-    params = {'apikey': myAPIKey, 'resource': '7657fcb7d772448a6d8504e4b20168b8'}
+    params = {'apikey': myAPIKey, 'resource': hash_md5}
+    #params = {'apikey': myAPIKey, 'resource': '7657fcb7d772448a6d8504e4b20168b8'}
     headers = {
         "Accept-Encoding": "gzip, deflate",
         "User-Agent": agent
