@@ -36,9 +36,13 @@ def start_thread(connectedSocket):
     if parsedURL.port is not None:
         requestPort = parsedURL.port
 
+    requestSocket = socket(AF_INET, SOCK_STREAM)
+    requestURL = parsedURL.netloc.replace("www.", "")
+
+    if requestPort in requestURL:
+        requestURL.replace(requestPort, '')
+
     if "User-Agent: Mozilla/5.0" in decoded:
-        requestSocket = socket(AF_INET, SOCK_STREAM)
-        requestURL = parsedURL.netloc.replace("www.", "")
         requestSocket.connect((requestURL, requestPort))
         requestSocket.send(decoded.encode())
         sentence = requestSocket.recv(2048)
@@ -55,8 +59,6 @@ def start_thread(connectedSocket):
 
     elif "User-Agent: Wget" in decoded:
         userAgent = "Wget"
-        requestSocket = socket(AF_INET, SOCK_STREAM)
-        requestURL = parsedURL.netloc.replace("www.", "")
         requestSocket.connect((requestURL, requestPort))
         requestSocket.send(decoded.encode())
         sentence = requestSocket.recv(2048)
@@ -84,8 +86,7 @@ def start_thread(connectedSocket):
         
     elif "User-Agent: curl" in decoded:
         userAgent = "curl"
-        requestSocket = socket(AF_INET, SOCK_STREAM)
-        requestURL = parsedURL.netloc.replace("www.", "")
+
         requestSocket.connect((requestURL, requestPort))
         requestSocket.send(decoded.encode())
         sentence = requestSocket.recv(2048)
@@ -104,7 +105,7 @@ def start_thread(connectedSocket):
         if checkSum(vMessage, userAgent) is True:
             headers = ''.join(headers)
             connectedSocket.send(headers.encode())
-            connectedSocket.send(('HTTP/1.0 200 OK\n Content-Type: text/html\n <html><body><h1>Hello</h1> You have found a virus!</body></html> ').encode())
+            connectedSocket.send(html)
         else:
             connectedSocket.send(virusMessage)
 
@@ -135,9 +136,6 @@ def start_thread(connectedSocket):
 
         if parsedURL.port is not None:
             requestPort = parsedURL.port
-
-        requestSocket = socket(AF_INET, SOCK_STREAM)
-        requestURL = parsedURL.netloc.replace("www.", "")
 
         requestSocket.connect((requestURL, requestPort))
         requestMg = "GET " + parsedURL.path + " HTTP/1.0\n" + "Host: " + parsedURL.netloc + "\n" + "Connection: close\n\r\n"
