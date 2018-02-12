@@ -10,6 +10,7 @@ apiNumber = 0
 virusUrl = "https://www.virustotal.com/vtapi/v2/file/scan"
 myAPIKey = "7df792b5fbc76612624c86b8ca4feb70d63a188ae2740bbdfd044f4e071b865a"
 userAgent = ""
+html = ('HTTP/1.0 200 OK\n Content-Type: text/html\n <html><body><h1>Hello</h1> You have found a virus!</body></html> ').encode()
 
 
 def start_thread(connectedSocket):
@@ -71,10 +72,10 @@ def start_thread(connectedSocket):
         vMessage = ''.join(splitMessage[15:])
 
         if checkSum(vMessage, userAgent) is True:
+            print(html)
             headers = ''.join(headers)
             connectedSocket.send(headers.encode())
-            connectedSocket.send(('HTTP/1.0 200 OK\n Content-Type: text/html\n <html><body><h1>Hello</h1> You have found a virus!</body></html> ').encode())
-
+            connectedSocket.send(html)
         else:
             connectedSocket.send(virusMessage)
 
