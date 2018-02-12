@@ -8,7 +8,6 @@ import requests
 serverAddress = 'localhost'
 apiNumber = 0
 virusUrl = "https://www.virustotal.com/vtapi/v2/file/scan"
-myAPIKey = "7df792b5fbc76612624c86b8ca4feb70d63a188ae2740bbdfd044f4e071b865a"
 userAgent = ""
 html = """<html>
 <body>
@@ -33,21 +32,18 @@ def start_thread(connectedSocket):
 
     parsed = decoded.strip().split(" ")  # Splitting request into three parts with white space as divider
     requestPort = 80  # Default Port
-
     URL = parsed[1]
     parsedURL = urlparse(URL)
-
     if parsedURL.port is not None:
         requestPort = parsedURL.port
 
     requestSocket = socket(AF_INET, SOCK_STREAM)
     requestURL = parsedURL.netloc.replace("www.", "")
-
+    decoded = decoded.replace("HTTP/1.1", "HTTP/1.0")
     if str(requestPort) in requestURL:
         requestURL = requestURL.replace(str(requestPort), '')
         requestURL = requestURL.replace(':', '')
-    print(requestURL, requestPort)
-        
+    
     if "User-Agent: Mozilla/5.0" in decoded:
         requestSocket.connect((requestURL, requestPort))
         requestSocket.send(decoded.encode())
@@ -74,11 +70,9 @@ def start_thread(connectedSocket):
             virusMessage = virusMessage + sentence
         
         headers, vMessage = virusMessage.decode('unicode_escape').split('\r\n\r\n')
-        print(headers)
-        print(vMessage)
         if checkSum(vMessage, userAgent) is True:
             connectedSocket.send(headers.encode())
-            connectedSocket.send(html)
+            connectedSocket.send(html.encode())
         else:
             connectedSocket.send(virusMessage)
 
@@ -101,7 +95,7 @@ def start_thread(connectedSocket):
 
         if checkSum(vMessage, userAgent) is True:
             connectedSocket.send(headers.encode())
-            connectedSocket.send(html)
+            connectedSocket.send(html.encode())
         else:
             connectedSocket.send(virusMessage)
 
@@ -145,7 +139,7 @@ def start_thread(connectedSocket):
 
         if checkSum(vMessage, userAgent) is True:
             connectedSocket.send(headers.encode())
-            connectedSocket.send(html)
+            connectedSocket.send(html.encode())
         else:
             connectedSocket.send(virusMessage)
 
@@ -156,7 +150,7 @@ def start_thread(connectedSocket):
 def checkSum(message, agent):
 
     hash_md5 = hashlib.md5(message.encode())
-    params = {'apikey': myAPIKey, 'resource': hash_md5}
+    params = {'apikey': apiNumber, 'resource': hash_md5}
     #params = {'apikey': myAPIKey, 'resource': '7657fcb7d772448a6d8504e4b20168b8'}
     headers = {
         "Accept-Encoding": "gzip, deflate",
@@ -165,8 +159,8 @@ def checkSum(message, agent):
     response = requests.get('https://www.virustotal.com/vtapi/v2/file/report',
                             params=params, headers=headers)
     json_response = response.json()
-    #if response.json().get('positives') != 0:
-    if response[positives]!=0:
+    print(json_response)
+    if json_response.get("positives") != 0:
         return True
     else:
         return False
