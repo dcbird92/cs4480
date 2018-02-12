@@ -71,7 +71,9 @@ def start_thread(connectedSocket):
         vMessage = ''.join(splitMessage[15:])
 
         if checkSum(vMessage, userAgent) is True:
-            connectedSocket.send(vMessage.encode())
+            connectedSocket.send(headers.encode())
+            connectedSocket.send(('HTTP/1.0 200 OK\n Content-Type: text/html\n <html><body><h1>Hello</h1> You have found a virus!</body></html> ').encode())
+
         else:
             connectedSocket.send(virusMessage)
 
