@@ -20,11 +20,14 @@ def start_thread(connectedSocket,apiNumber):
     print("Receiving from:", connectedSocket.getpeername())
     getMSG = True
 
-    while getMSG: # retrieve data from from the client
-        sentence = connectedSocket.recv(2048).decode('unicode_escape')
-        decoded = decoded + sentence
-        if decoded.endswith('\r\n\r\n') or sentence == '\r\n':
-            getMSG = False
+    try:
+        while getMSG: # retrieve data from from the client
+            sentence = connectedSocket.recv(2048).decode('unicode_escape')
+            decoded = decoded + sentence
+            if decoded.endswith('\r\n\r\n') or sentence == '\r\n':
+                getMSG = False
+    except Exception as msg:
+        print("Socket Error: %s" % msg)
     print("Received the message from:", connectedSocket.getpeername())
 
     if "Connection: keep-alive" in decoded:
@@ -37,6 +40,7 @@ def start_thread(connectedSocket,apiNumber):
     if parsedURL.port is not None:
         requestPort = parsedURL.port
 
+
     requestSocket = socket(AF_INET, SOCK_STREAM)
     requestURL = parsedURL.netloc.replace("www.", "")
     if str(requestPort) in requestURL:
@@ -44,7 +48,10 @@ def start_thread(connectedSocket,apiNumber):
         requestURL = requestURL.replace(':', '')
     
     if "User-Agent: Mozilla/5.0" in decoded:
-        requestSocket.connect((requestURL, requestPort))
+        try:
+            requestSocket.connect((requestURL, requestPort))
+        except Exception as msg:
+            print("Socket Error: %s" % msg)
         requestSocket.send(decoded.encode())
         sentence = requestSocket.recv(2048)
         virusMessage = sentence
@@ -60,7 +67,10 @@ def start_thread(connectedSocket,apiNumber):
 
     elif "User-Agent: Wget" in decoded:
         userAgent = "Wget"
-        requestSocket.connect((requestURL, requestPort)) # connected to the server and pass along the message
+        try:
+            requestSocket.connect((requestURL, requestPort)) # connected to the server and pass along the message
+        except Exception as msg:
+            print("Socket Error: %s" % msg)
         requestSocket.send(decoded.encode())
         sentence = requestSocket.recv(2048)
         virusMessage = sentence
@@ -83,7 +93,10 @@ def start_thread(connectedSocket,apiNumber):
     elif "User-Agent: curl" in decoded:
         userAgent = "curl"
         # connected to the server and pass along the message
-        requestSocket.connect((requestURL, requestPort))
+        try:
+            requestSocket.connect((requestURL, requestPort))
+        except Exception as msg:
+            print("Socket Error: %s" % msg)
         requestSocket.send(decoded.encode())
         sentence = requestSocket.recv(2048)
         virusMessage = sentence
@@ -124,8 +137,10 @@ def start_thread(connectedSocket,apiNumber):
             connectedSocket.send(response.encode())
             connectedSocket.close()
             return
-
-        requestSocket.connect((requestURL, requestPort))
+        try:
+            requestSocket.connect((requestURL, requestPort))
+        except Exception as msg:
+            print("Socket Error: %s" % msg)
         requestMg = "GET " + parsedURL.path + " HTTP/1.0\n" + "Host: " + parsedURL.netloc + "\n" + "Connection: close\n\r\n"
         print("Sending message to: " + requestURL + " at port: " + str(requestPort))
         print(requestMg)
@@ -159,8 +174,11 @@ def checkSum(message, agent,apiNumber):
         "User-Agent": agent
     }
     # using the python response library
-    response = requests.get('https://www.virustotal.com/vtapi/v2/file/report',
-                            params=params, headers=headers)
+    try:
+        response = requests.get('https://www.virustotal.com/vtapi/v2/file/report',
+                                params=params, headers=headers)
+    except Exception as msg:
+        print("Socket Error: %s" % msg)
     json_response = response.json()
     # if the value associated with positives is anything other than 0 there are viruses
     if json_response.get("positives") != 0:
