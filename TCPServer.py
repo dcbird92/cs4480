@@ -10,8 +10,12 @@ apiNumber = 0
 virusUrl = "https://www.virustotal.com/vtapi/v2/file/scan"
 myAPIKey = "7df792b5fbc76612624c86b8ca4feb70d63a188ae2740bbdfd044f4e071b865a"
 userAgent = ""
-html = ('HTTP/1.0 200 OK\n Content-Type: text/html\n <html><body><h1>Hello</h1> You have found a virus!</body></html> ').encode()
-
+html = """<html>
+<body>
+<h1>Hello</h1>
+You have found a virus!
+</body>
+</html>"""
 
 def start_thread(connectedSocket):
     decoded = ""
@@ -22,7 +26,7 @@ def start_thread(connectedSocket):
         decoded = decoded + sentence
         if decoded.endswith('\r\n\r\n') or sentence == '\r\n':
             getMSG = False
-    print("Received the message from:",connectedSocket.getpeername())
+    print("Received the message from:", connectedSocket.getpeername())
 
     if "Connection: keep-alive" in decoded:
         decoded = decoded.replace("Connection: keep-alive", "Connection: close")
@@ -42,7 +46,7 @@ def start_thread(connectedSocket):
     if str(requestPort) in requestURL:
         requestURL = requestURL.replace(str(requestPort), '')
         requestURL = requestURL.replace(':', '')
-    print(requestURL,requestPort)
+    print(requestURL, requestPort)
         
     if "User-Agent: Mozilla/5.0" in decoded:
         requestSocket.connect((requestURL, requestPort))
@@ -58,7 +62,6 @@ def start_thread(connectedSocket):
         requestSocket.close()
         connectedSocket.close()
 
-
     elif "User-Agent: Wget" in decoded:
         userAgent = "Wget"
         requestSocket.connect((requestURL, requestPort))
@@ -66,7 +69,7 @@ def start_thread(connectedSocket):
         sentence = requestSocket.recv(2048)
         virusMessage = sentence
         while len(sentence) != 0:
-            print("Receiving Wget/curl")
+            print("Receiving Wget")
             sentence = requestSocket.recv(2048)
             virusMessage = virusMessage + sentence
         
@@ -92,7 +95,6 @@ def start_thread(connectedSocket):
         while len(sentence) != 0:
             print("Receiving curl")
             sentence = requestSocket.recv(2048)
-            #print(sentence)
             virusMessage = virusMessage + sentence
         
         headers, vMessage = virusMessage.decode('unicode_escape').split('\r\n\r\n')
@@ -163,7 +165,8 @@ def checkSum(message, agent):
     response = requests.get('https://www.virustotal.com/vtapi/v2/file/report',
                             params=params, headers=headers)
     json_response = response.json()
-    if response.json().get('positives') != 0:
+    #if response.json().get('positives') != 0:
+    if response[positives]!=0:
         return True
     else:
         return False
