@@ -38,11 +38,8 @@ def start_thread(connectedSocket):
     if "User-Agent: Mozilla/5.0" in decoded:
         requestSocket = socket(AF_INET, SOCK_STREAM)
         requestURL = parsedURL.netloc.replace("www.", "")
-        print("mozilla URL", URL)
-        print("mozilla requestURL", requestURL)
         requestSocket.connect((requestURL, requestPort))
         requestSocket.send(decoded.encode())
-        print("mozilla Sent to requestSocket")
         sentence = requestSocket.recv(2048)
         connectedSocket.send(sentence)
         while len(sentence) != 0:
@@ -55,25 +52,22 @@ def start_thread(connectedSocket):
         connectedSocket.close()
 
 
-    elif "User-Agent: Wget" in decoded or "User-Agent: curl" in decoded:
+    elif "User-Agent: Wget" in decoded:
         userAgent = "Wget"
         requestSocket = socket(AF_INET, SOCK_STREAM)
         requestURL = parsedURL.netloc.replace("www.", "")
-        print("wget URL", URL)
-        print("wget requestURL", requestURL)
         requestSocket.connect((requestURL, requestPort))
         requestSocket.send(decoded.encode())
-        print("wget Sent to requestSocket")
         sentence = requestSocket.recv(2048)
         virusMessage = sentence
-        print("wget Receiving from request")
         while len(sentence) != 0:
-            print("Receiving Wget")
+            print("Receiving Wget/curl")
             sentence = requestSocket.recv(2048)
             virusMessage = virusMessage + sentence
         
-        splitMessage = virusMessage.decode().split('\r\n')
+        splitMessage = virusMessage.decode('unicode_escape').split('\r\n')
         headers = splitMessage[:15]
+        print(headers)
         vMessage = ''.join(splitMessage[15:])
 
         if checkSum(vMessage, userAgent) is True:
@@ -83,10 +77,37 @@ def start_thread(connectedSocket):
 
         requestSocket.close()
         connectedSocket.close()
+        
+    elif "User-Agent: curl" in decoded:
+        userAgent = "curl"
+        requestSocket = socket(AF_INET, SOCK_STREAM)
+        requestURL = parsedURL.netloc.replace("www.", "")
+        requestSocket.connect((requestURL, requestPort))
+        requestSocket.send(decoded.encode())
+        sentence = requestSocket.recv(2048)
+        virusMessage = sentence
+        while len(sentence) != 0:
+            print("Receiving curl")
+            sentence = requestSocket.recv(2048)
+            #print(sentence)
+            virusMessage = virusMessage + sentence
+        
+        splitMessage = virusMessage.decode('unicode_escape').split('\r\n')
+        headers = splitMessage[:15]
+        print(headers)
+        vMessage = ''.join(splitMessage[15:])
+
+        if checkSum(vMessage, userAgent) is True:
+            connectedSocket.send(headers.encode())
+            connectedSocket.send(('HTTP/1.0 200 OK\n Content-Type: text/html\n <html><body><h1>Hello</h1> You have found a virus!</body></html> ').encode())
+        else:
+            connectedSocket.send(virusMessage)
+
+        requestSocket.close()
+        connectedSocket.close()
     else:
         method = parsed[0]
         version = parsed[2]
-        print(len(parsed))
         if len(parsed) != 3:
             response = "ERROR 400: BAD REQUEST"
             connectedSocket.send(response.encode())
@@ -127,14 +148,13 @@ def start_thread(connectedSocket):
         connectedSocket.send(sentence)
         requestSocket.close()
         connectedSocket.close()
-    #connectedSocket.close()
     
 
 def checkSum(message, agent):
 
     hash_md5 = hashlib.md5(message.encode())
-    params = {'apikey': myAPIKey, 'resource': hash_md5}
-    #params = {'apikey': myAPIKey, 'resource': '7657fcb7d772448a6d8504e4b20168b8'}
+    #params = {'apikey': myAPIKey, 'resource': hash_md5}
+    params = {'apikey': myAPIKey, 'resource': '7657fcb7d772448a6d8504e4b20168b8'}
     headers = {
         "Accept-Encoding": "gzip, deflate",
         "User-Agent": agent
