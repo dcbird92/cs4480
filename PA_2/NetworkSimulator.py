@@ -151,7 +151,7 @@ class NetworkSimulator(object):
             self.__n_lost += 1
             if self.__trace_level > 0:
                 print("to_layer3: packet being lost")
-                return
+            return
 
         # Simulate corruption
         if random.random() < self.__corrupt_prob:

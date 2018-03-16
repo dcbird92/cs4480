@@ -96,24 +96,29 @@ class StudentNetworkSimulator(NetworkSimulator, object):
     # these variables to send messages error free!  They can only hold
     # state information for A or B.
     # Also add any necessary methods (e.g. checksum of a String)
-    waitA = 0
-    waitB = 0
-    alternating_bitA = 0
-    alternating_bitB = 0
-    global_messageA = ""
-    global_messageB = ""
-    timeout = False
+    base = 1
+    seq_num = 1
+    expected_seq = 1
+    buffer = []
+    extra = []
+    window_size = 8
     ack = 0
-    corruptPkt = 0
-    lostPkt = 0
+    corruptPktA = 0
+    corruptPktB = 0
+    lostPktA = 0
+    lostPktB = 0
+    timeouts = 0
     resentPkt = 0
     sentPkt = 0
     rcvPkt = 0
+    x = False
 
-    def corrupt(self, packet):
+    def not_corrupt(self, packet):
         check = 0
         for char in packet.get_payload():
             check += ord(char)
+        check += packet.get_acknum()
+        check += packet.get_seqnum()
         if check == packet.get_checksum():
             return True
         else:
@@ -129,61 +134,29 @@ class StudentNetworkSimulator(NetworkSimulator, object):
     # the data in such a message is delivered in-order, and correctly, to
     # the receiving upper layer.
     def a_output(self, message):
-        # msg = message.get_data()
-        if self.timeout:
-            if self.waitA == 1:
-                checksum = 0
-                for char in message.get_data():
-                    checksum += ord(char)
-
-                self.global_messageA = message
-
-                sndpkt = Packet(0, 0, checksum, message.get_data())
-                self.to_layer3(0, sndpkt)
-                self.start_timer(0, 1000)
-                self.timeout = False
-                self.resentPkt += 1
-                print(" TIMEOUT SUCCESSFULLY RESENT FOR BIT 0")
-
-            elif self.waitA == 3:
-                checksum = 0
-                for char in message.get_data():
-                    checksum += ord(char)
-
-                self.global_messageA = message
-
-                sndpkt = Packet(1, 1, checksum, message.get_data())
-                self.to_layer3(0, sndpkt)
-                self.start_timer(0, 1000)
-                self.timeout = False
-                self.resentPkt += 1
-                print(" TIMEOUT SUCCESSFULLY RESENT FOR BIT 1")
-        else:
+        if self.seq_num < self.base + self.window_size:
             self.rcvPkt += 1
-            if self.waitA == 0:
-                checksum = 0
-                for char in message.get_data():
-                    checksum += ord(char)
+            checksum = 0
+            # create a checksum to pass in the message
+            # the checksum is the ascii total of the message plus the sequence number
+            for char in message.get_data():
+                checksum += ord(char)
+            checksum += self.seq_num
 
-                self.global_messageA = message
+            sndpkt = Packet(self.seq_num, 0, checksum, message.get_data())
+            # add the packet to the buffer
+            self.buffer.append(sndpkt)
+            self.to_layer3(0, sndpkt)
+            if self.base == self.seq_num:
+                self.start_timer(0, 10)
+            # new message being sent increment sequence number
+            self.seq_num += 1
+            self.sentPkt += 1
+        else:
+            # if the extra buffer is greater than 50, disregard new messages
+            if len(self.extra) < 50:
+                self.extra.append(message)
 
-                sndpkt = Packet(0, 0, checksum, message.get_data())
-                self.to_layer3(0, sndpkt)
-                self.start_timer(0, 1000)
-                self.waitA += 1
-                self.sentPkt += 1
-            elif self.waitA == 2:
-                checksum = 0
-                for char in message.get_data():
-                    checksum += ord(char)
-
-                self.global_messageA = message
-
-                sndpkt = Packet(1, 1, checksum, message.get_data())
-                self.to_layer3(0, sndpkt)
-                self.start_timer(0, 1000)
-                self.waitA += 1
-                self.sentPkt += 1
 
     # This routine will be called whenever a packet sent from the B-side
     # (i.e. as a result of a toLayer3() being done by a B-side procedure)
@@ -191,23 +164,24 @@ class StudentNetworkSimulator(NetworkSimulator, object):
     # sent from the B-side.
 
     def a_input(self, packet):
-        if self.waitA == 1 or self.waitA == 3:
-            if self.waitA == 1:
-                if packet.get_acknum() is 0 and packet.get_checksum() is 0:
-                    self.ack += 1
-                    print(" SUCCESSFUL ACK: ", self.ack)
-                    self.stop_timer(0)
-                    self.waitA += 1
-                else:
-                    print(" UNSUCCESSFUL ACK")
-            if self.waitA == 3:
-                if packet.get_acknum() is 1 or packet.get_checksum() is 0:
-                    self.ack += 1
-                    print(" SUCCESSFUL ACK: ", self.ack)
-                    self.stop_timer(0)
-                    self.waitA = 0
-                else:
-                    print(" UNSUCCESSFUL ACK")
+        if self.not_corrupt(packet):
+            # check to not increment on repeated ack
+            if self.base < packet.get_acknum()+1:
+                self.ack += 1
+            # set the base to the the next ACK number
+            self.base = packet.get_acknum()+1
+            if self.base == self.seq_num:
+                self.stop_timer(0)
+            else:
+                # reset timers to prevent excess timeouts
+                self.stop_timer(0)
+                self.start_timer(0, 10)
+            if len(self.extra) > 0:
+                # if the buffer is full and messages were saved to the extra buffer
+                self.a_output(self.extra.pop(0))
+        else:
+            self.corruptPktA += 1
+            print(" CORRUPT PACKET")
 
     # This routine will be called when A's timer expires (thus generating a
     # timer interrupt). You'll probably want to use this routine to control 
@@ -216,9 +190,14 @@ class StudentNetworkSimulator(NetworkSimulator, object):
 
     def a_timer_interrupt(self):
         print(" TIMEOUT DETECTED")
-        self.timeout = True
-        self.lostPkt += 1
-        self.a_output(self.global_messageA)
+        self.timeouts += 1
+        self.start_timer(0, 10)
+        new_base = self.base
+        # start at the base and resend all messages in the window
+        while new_base < self.seq_num:
+            self.to_layer3(0, self.buffer[new_base])
+            new_base += 1
+            self.resentPkt += 1
 
     # This routine will be called once, before any of your other A-side
     # routines are called. It can be used to do any required
@@ -226,9 +205,8 @@ class StudentNetworkSimulator(NetworkSimulator, object):
     # of entity A).	
 
     def a_init(self):
-        self.alternating_bitA = 0
-        self.global_messageA = ""
-        self.waitA = 0
+        self.base = 0
+        self.seq_num = 0
 
     # This routine will be called whenever a packet sent from the B-side
     # (i.e. as a result of a toLayer3() being done by an A-side procedure)
@@ -236,41 +214,27 @@ class StudentNetworkSimulator(NetworkSimulator, object):
     # sent from the A-side.
 
     def b_input(self, packet):
-        not_cor = self.corrupt(packet)
-        if self.waitB is 0:
-            if packet.get_acknum() is 0 and not_cor:
-                self.to_layer5(1, packet.get_payload())
-                self.to_layer3(1, Packet(0, 0, 0, ""))
-                self.waitB += 1
-            elif not_cor:
-                print(" ACK LOST IN TRANSIT")
-                # self.lostPkt += 1
-                self.to_layer3(1, Packet(1, 1, 0, ""))
-            else:
-                print(" PACKET CORRUPT")
-                self.corruptPkt += 1
-                self.lostPkt -= 1
-                self.to_layer3(1, Packet(1, 1, 1, ""))
-        elif self.waitB is 1:
-            if packet.get_acknum() is 1 and not_cor:
-                self.to_layer5(1, packet.get_payload())
-                self.to_layer3(1, Packet(1, 1, 0, ""))
-                self.waitB = 0
-            elif not_cor:
-                print(" ACK LOST IN TRANSIT")
-                # self.lostPkt += 1
-                self.to_layer3(1, Packet(0, 0, 0, ""))
-            else:
-                print(" PACKET CORRUPT")
-                self.corruptPkt += 1
-                self.lostPkt -= 1
-                self.to_layer3(1, Packet(0, 0, 1, ""))
+        not_cor = self.not_corrupt(packet)
+        if not_cor and packet.get_seqnum() == self.expected_seq:
+            # send data to the upper layer
+            self.to_layer5(1, packet.get_payload())
+            # send ack message to A with the seq number being the ACK
+            self.to_layer3(1, Packet(0, self.expected_seq, self.expected_seq, ""))
+            # increment the next seq expected
+            self.expected_seq += 1
+            self.x = False
+        else:
+            if not not_cor:
+                self.corruptPktB += 1
+            elif not self.x:
+                self.lostPktA += 1
+                self.x = True
+            # send an ACK to A with the last accepted sequence number
+            self.to_layer3(1, Packet(0, self.expected_seq-1, self.expected_seq-1, ""))
 
     # This routine will be called once, before any of your other B-side
     # routines are called. It can be used to do any required
     # initialization (e.g. of member variables you add to control the state
     # of entity B).
     def b_init(self):
-        self.alternating_bitB = 0
-        self.global_messageB = ""
-        self.waitB = 0
+        self.expected_seq = 0

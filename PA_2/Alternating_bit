@@ -1,0 +1,80 @@
+a_output
+    if self.timeout:
+        if self.state_a == 1:
+            checksum = 0
+            for char in message.get_data():
+                checksum += ord(char)
+
+            self.global_messageA = message
+
+            sndpkt = Packet(0, 0, checksum, message.get_data())
+            self.to_layer3(0, sndpkt)
+            self.start_timer(0, 1000)
+            self.timeout = False
+            self.resentPkt += 1
+            print(" TIMEOUT SUCCESSFULLY RESENT FOR BIT 0")
+
+        elif self.state_a == 3:
+            checksum = 0
+            for char in message.get_data():
+                checksum += ord(char)
+
+            self.global_messageA = message
+
+            sndpkt = Packet(1, 1, checksum, message.get_data())
+            self.to_layer3(0, sndpkt)
+            self.start_timer(0, 1000)
+            self.timeout = False
+            self.resentPkt += 1
+            print(" TIMEOUT SUCCESSFULLY RESENT FOR BIT 1")
+
+        elif self.state_a == 2:
+            checksum = 0
+            for char in message.get_data():
+                checksum += ord(char)
+
+            self.global_messageA = message
+
+            sndpkt = Packet(1, 1, checksum, message.get_data())
+            self.to_layer3(0, sndpkt)
+            self.start_timer(0, 1000)
+            self.state_a += 1
+            self.sentPkt += 1
+
+a_input
+        if self.state_a == 3:
+        if packet.get_acknum() is 1 or packet.get_checksum() is 0:
+            self.ack += 1
+            print(" SUCCESSFUL ACK: ", self.ack)
+            self.stop_timer(0)
+            self.state_a = 0
+        else:
+            print(" UNSUCCESSFUL ACK")
+
+b_input
+        if self.state_b is 0:
+        if packet.get_acknum() is 0 and not_cor:
+            self.to_layer5(1, packet.get_payload())
+            self.to_layer3(1, Packet(0, 0, 0, ""))
+            self.state_b += 1
+        elif not_cor:
+            print(" ACK LOST IN TRANSIT")
+            self.to_layer3(1, Packet(1, 1, 0, ""))
+        else:
+            print(" PACKET CORRUPT")
+            self.corruptPkt += 1
+            self.lostPkt -= 1
+            self.to_layer3(1, Packet(1, 1, 1, ""))
+    elif self.state_b is 1:
+        if packet.get_acknum() is 1 and not_cor:
+            self.to_layer5(1, packet.get_payload())
+            self.to_layer3(1, Packet(1, 1, 0, ""))
+            self.state_b = 0
+        elif not_cor:
+            print(" ACK LOST IN TRANSIT")
+            self.to_layer3(1, Packet(0, 0, 0, ""))
+        else:
+            print(" PACKET CORRUPT")
+            self.corruptPkt += 1
+            self.lostPkt -= 1
+            self.to_layer3(1, Packet(0, 0, 1, ""))

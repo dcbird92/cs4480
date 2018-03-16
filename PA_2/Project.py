@@ -111,11 +111,13 @@ def main():
     simulator.run_simulator()
     print("Received messages: ", simulator.rcvPkt)
     print("Acknowledged packets: ", simulator.ack)
-    print("Corrupt packets: ", simulator.corruptPkt)
-    print("Lost packets: ", simulator.lostPkt)
+    print("Corrupt packets A->B: ", simulator.corruptPktB)
+    print("Corrupt packets B->A: ", simulator.corruptPktA)
+    print("Lost packets: A->B ", simulator.lostPktA)
     print("Sent packets: ", simulator.sentPkt)
     print("Resent packets: ", simulator.resentPkt)
     print("Total sent packets: ", simulator.resentPkt + simulator.sentPkt)
+    print("Last Sequence Number: ", simulator.seq_num)
 
 
 main()
