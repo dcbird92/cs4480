@@ -175,6 +175,7 @@ class StudentNetworkSimulator(NetworkSimulator, object):
             # set the base to the the next ACK number
             count = packet.get_acknum() + 1 - self.base
             self.base = packet.get_acknum()+1
+            # adjust the wait time based on how many packets are in the window
             self.waitTime = 20
             if self.base + 3 == self.seq_num:
                 self.waitTime = 25
@@ -203,6 +204,7 @@ class StudentNetworkSimulator(NetworkSimulator, object):
     def a_timer_interrupt(self):
         print(" TIMEOUT DETECTED")
         self.timeouts += 1
+        # if there is a timeout double the wait time
         self.waitTime *= 2
         self.start_timer(0, self.waitTime)
         new_base = self.base
