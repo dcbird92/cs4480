@@ -97,13 +97,13 @@ class StudentNetworkSimulator(NetworkSimulator, object):
     # state information for A or B.
     # Also add any necessary methods (e.g. checksum of a String)
     base = 1
+    waitTime = 20
     seq_num = 1
     expected_seq = 1
     buffer = []
     extra = []
     window_size = 8
     ack = 0
-    corruptPktA = 0
     corruptPktB = 0
     lostPktA = 0
     lostPktB = 0
@@ -111,6 +111,8 @@ class StudentNetworkSimulator(NetworkSimulator, object):
     resentPkt = 0
     sentPkt = 0
     rcvPkt = 0
+    layer5B = 0
+    droppedMessages = 0
     x = False
 
     def not_corrupt(self, packet):
@@ -134,8 +136,8 @@ class StudentNetworkSimulator(NetworkSimulator, object):
     # the data in such a message is delivered in-order, and correctly, to
     # the receiving upper layer.
     def a_output(self, message):
+        self.rcvPkt += 1
         if self.seq_num < self.base + self.window_size:
-            self.rcvPkt += 1
             checksum = 0
             # create a checksum to pass in the message
             # the checksum is the ascii total of the message plus the sequence number
@@ -148,7 +150,7 @@ class StudentNetworkSimulator(NetworkSimulator, object):
             self.buffer.append(sndpkt)
             self.to_layer3(0, sndpkt)
             if self.base == self.seq_num:
-                self.start_timer(0, 10)
+                self.start_timer(0, self.waitTime)
             # new message being sent increment sequence number
             self.seq_num += 1
             self.sentPkt += 1
@@ -156,6 +158,8 @@ class StudentNetworkSimulator(NetworkSimulator, object):
             # if the extra buffer is greater than 50, disregard new messages
             if len(self.extra) < 50:
                 self.extra.append(message)
+            else:
+                self.droppedMessages += 1
 
 
     # This routine will be called whenever a packet sent from the B-side
@@ -169,18 +173,26 @@ class StudentNetworkSimulator(NetworkSimulator, object):
             if self.base < packet.get_acknum()+1:
                 self.ack += 1
             # set the base to the the next ACK number
+            count = packet.get_acknum() + 1 - self.base
             self.base = packet.get_acknum()+1
+            self.waitTime = 20
+            if self.base + 3 == self.seq_num:
+                self.waitTime = 25
+            elif self.base + 4 < self.seq_num:
+                self.waitTime = 30
             if self.base == self.seq_num:
                 self.stop_timer(0)
             else:
                 # reset timers to prevent excess timeouts
                 self.stop_timer(0)
-                self.start_timer(0, 10)
+                self.start_timer(0, self.waitTime)
             if len(self.extra) > 0:
                 # if the buffer is full and messages were saved to the extra buffer
-                self.a_output(self.extra.pop(0))
+                while count > 0 and len(self.extra) > 0:
+                    self.a_output(self.extra.pop(0))
+                    self.rcvPkt -= 1
+                    count -= 1
         else:
-            self.corruptPktA += 1
             print(" CORRUPT PACKET")
 
     # This routine will be called when A's timer expires (thus generating a
@@ -191,7 +203,8 @@ class StudentNetworkSimulator(NetworkSimulator, object):
     def a_timer_interrupt(self):
         print(" TIMEOUT DETECTED")
         self.timeouts += 1
-        self.start_timer(0, 10)
+        self.waitTime *= 2
+        self.start_timer(0, self.waitTime)
         new_base = self.base
         # start at the base and resend all messages in the window
         while new_base < self.seq_num:
@@ -218,6 +231,7 @@ class StudentNetworkSimulator(NetworkSimulator, object):
         if not_cor and packet.get_seqnum() == self.expected_seq:
             # send data to the upper layer
             self.to_layer5(1, packet.get_payload())
+            self.layer5B += 1
             # send ack message to A with the seq number being the ACK
             self.to_layer3(1, Packet(0, self.expected_seq, self.expected_seq, ""))
             # increment the next seq expected
@@ -230,7 +244,7 @@ class StudentNetworkSimulator(NetworkSimulator, object):
                 self.lostPktA += 1
                 self.x = True
             # send an ACK to A with the last accepted sequence number
-            self.to_layer3(1, Packet(0, self.expected_seq-1, self.expected_seq-1, ""))
+            self.to_layer3(1, Packet(self.expected_seq-1, self.expected_seq-1, self.expected_seq-1, ""))
 
     # This routine will be called once, before any of your other B-side
     # routines are called. It can be used to do any required
